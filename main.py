@@ -4,6 +4,8 @@ import requests
 import json
 import random
 from replit import db
+import jaden
+from keep_alive import keep_alive
 #an asynchronous library
 
 client = discord.Client()
@@ -12,7 +14,7 @@ api_key = os.getenv('API_KEY')
 recipe_key = os.getenv('RECIPE_KEY')
 #cat_key = os.getenv('CAT_KEY')
 
-sad_words = ["sad", "depressed", "unhappy", "schwartz", "angry", "miserable", "mad"]
+sad_words = ["depressed", "unhappy", "miserable"]
 teach_me = ["beep bop"]
 
 def learn(lesson):
@@ -39,7 +41,7 @@ def get_inspo():
   response = requests.get(url)
   json_data = json.loads(response.text)
   print(json_data[0])
-  return(json_data[0])
+  return(json_data[0]['q'])
 
 def get_ron_swanson():
   url = "https://ron-swanson-quotes.herokuapp.com/v2/quotes"
@@ -98,7 +100,7 @@ async def on_message(message):
     return
 
   if message.content.startswith('robot alyssa help'):
-    await message.channel.send('say cat for cat, dog for dog, kanye for kanye west quotes, star wars for star wars quote, swanson for ron swanson quotes, say "hungry for" + food to search for a recipe')
+    await message.channel.send('say cat for cat, dog for dog, kanye for kanye west quotes, star wars for star wars quote, swanson for ron swanson quotes, say "hungry for" + food to search for a recipe, ask wisdom for infinite wisdom')
 
   options = teach_me
   if "knowledge" in db.keys():
@@ -157,8 +159,14 @@ async def on_message(message):
   if message.content.find('cat') > -1:
     await message.channel.send(get_cat_image())
 
+  if message.content.find('wisdom') > -1:
+    quotes = jaden.get_jaden_tweets()
+    one = random.choice(quotes)
+    two = random.choice(quotes)
+    three = random.choice(quotes)
+    await message.channel.send(one + " "+ two + " " + three)
   
 
 
-
+keep_alive()
 client.run(os.getenv('TOKEN'))
