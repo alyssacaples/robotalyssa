@@ -1,3 +1,4 @@
+
 import discord
 import os 
 import requests
@@ -6,7 +7,18 @@ import random
 from replit import db
 import jaden
 from keep_alive import keep_alive
-#an asynchronous library
+import pickle
+import os.path
+import pandas as pd
+
+
+doc = 'sweeties.csv'
+df = pd.read_csv(doc)
+df['Name'] = df['First'] + " "+ df['Last']
+df = df.drop(['First', 'Last'], axis=1)
+names = df['Name']
+names = names.str.lower()
+df['Name'] = names
 
 client = discord.Client()
 
@@ -16,6 +28,31 @@ recipe_key = os.getenv('RECIPE_KEY')
 
 sad_words = ["depressed", "unhappy", "miserable"]
 teach_me = ["beep bop"]
+
+def get_sweetie(message):
+  print(message)
+  if(len(message.split()) > 2):
+    first = message.split()[1]
+    last = message.split()[2:]
+    str1 = " "
+    searched_name = first + " " + str1.join(last)
+    lower_name = searched_name.lower()
+    try:
+        current = df.loc[df['Name'] == lower_name]
+        s = str(searched_name + " is a " + str(current['Year'].values[0]) + " " + str(current['Major'].values[0]) + " major with " + str(current['Total'].values[0]) + " SWE points.")
+        return s
+    except Exception as e:
+        print(e)
+        return "Do not know that SWEetie :("
+    
+  else:
+    return "Do not know that SWEetie :("
+
+def get_top_sweetie(message):
+    message = message.replace("!top", " ")
+    top = df[df.Total == df.Total.max()]
+    s = str(top['Name'].values[0]) + " is the top SWEetie! (in points, at least)"
+    return s
 
 def learn(lesson):
   if "knowledge" in db.keys():
@@ -89,6 +126,20 @@ def get_cat_image():
   print(json_data)
   return json_data[0]['url']
 
+def get_top_ten():
+    top = df.sort_values(['Total', 'Name'], ascending=False).groupby('Name').head(10)
+    t = top.head(10)['Name']
+    p = top.head(10)['Total']
+    names = []
+    for index, current in enumerate(t):
+        value = index + 1
+        s = str(value) + ": " + current
+        names.append(s)
+    
+    str1 = ", "
+    names = str1.join(names)
+    return names
+
 
 @client.event #this is how you register you event
 async def on_ready():
@@ -99,8 +150,8 @@ async def on_message(message):
   if message.author == client.user:
     return
 
-  if message.content.startswith('robot alyssa help'):
-    await message.channel.send('say cat for cat, dog for dog, kanye for kanye west quotes, star wars for star wars quote, swanson for ron swanson quotes, say "hungry for" + food to search for a recipe, ask wisdom for infinite wisdom')
+  if message.content.startswith('!help'):
+    await message.channel.send('say "!" + cat for cat, dog for dog, kanye for kanye west quotes, star wars for star wars quote, swanson for ron swanson quotes, say "hungry for" + food to search for a recipe, ask wisdom for infinite wisdom, sweetie + <your first and last names> to get your swe points, top for sweetie with most points, ten for top ten points')
 
   options = teach_me
   if "knowledge" in db.keys():
@@ -109,26 +160,36 @@ async def on_message(message):
   if any (word in message.content for word in sad_words):
     await message.channel.send(get_inspo())
   
-  if message.content.startswith('$hello'):
+  if message.content.startswith('!hello'):
     await message.channel.send('hello! :)')
 
-  if message.content.startswith('$new'):
-    add = message.content.replace('$new ', '')
+  if message.content.startswith('!top'):
+    await message.channel.send(get_top_sweetie(message.content))
+
+  if message.content.startswith('!ten'):
+    await message.channel.send(get_top_ten())
+
+  if message.content.startswith('!sweetie'):
+    sweetie = get_sweetie(message.content)
+    await message.channel.send(sweetie)
+
+  if message.content.startswith('!new'):
+    add = message.content.replace('!new ', '')
     learn(add)
     current = db["knowledge"]
     words = ', '.join([str(elem) for elem in current]) 
     await message.channel.send('updated word list: ')
     await message.channel.send(words)
 
-  if message.content.startswith('$show'):
+  if message.content.startswith('!show'):
     current = db["knowledge"]
     words = ', '.join([str(elem) for elem in current]) 
     await message.channel.send('word list: ')
     await message.channel.send(words)
 
-  if message.content.startswith('$rm'):
+  if message.content.startswith('!rm'):
       if "knowledge" in db.keys():
-        rm = message.content.replace('$rm ', '')
+        rm = message.content.replace('!rm ', '')
         unlearn(rm)
         await message.channel.send('removed word')
 
@@ -140,12 +201,15 @@ async def on_message(message):
   if message.content.find('robot alyssa') > -1:
     learnings = db["knowledge"]
     await message.channel.send(random.choice(learnings))
+
+  if message.content.find('!sad') > -1:
+    await message.channel.send(get_inspo())
     
-  if message.content.find('kanye') > -1:
+  if message.content.find('!kanye') > -1:
     await message.channel.send(get_kanye_quote())
 
-  if message.content.find('star wars') > -1:
-    await message.channel.send(get_kanye_quote())
+  if message.content.find('!star wars') > -1:
+    await message.channel.send(get_star_wars())
 
   if message.content.find('swanson') > -1:
     await message.channel.send(get_ron_swanson())
@@ -153,10 +217,10 @@ async def on_message(message):
   if message.content.find('yeet') > -1:
     await message.channel.send('yeet!!!!')
 
-  if message.content.find('dog') > -1:
+  if message.content.find('!dog') > -1:
     await message.channel.send(get_dog_image())
 
-  if message.content.find('cat') > -1:
+  if message.content.find('!cat') > -1:
     await message.channel.send(get_cat_image())
 
   if message.content.find('wisdom') > -1:
